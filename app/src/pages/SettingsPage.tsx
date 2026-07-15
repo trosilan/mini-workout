@@ -20,6 +20,7 @@ const NOTIFICATION_TEMPLATE_CODE = "short-workout-notice";
 
 interface SettingsPageProps {
   onBack: () => void;
+  onAgreed?: () => void;
 }
 
 const TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) => {
@@ -135,7 +136,7 @@ function InfiniteOffsetCarousel({
   );
 }
 
-export function SettingsPage({ onBack }: SettingsPageProps) {
+export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
   const [settings, setSettings] = React.useState<Settings>(() => loadSettings());
   const [notifyAgreed, setNotifyAgreed] = useState(
     () => localStorage.getItem("jeongunwan.notifyAgreed") === "1"
@@ -160,6 +161,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           if (type === "newAgreement" || type === "alreadyAgreed") {
             localStorage.setItem("jeongunwan.notifyAgreed", "1");
             setNotifyAgreed(true);
+            onAgreed?.(); // DB에 동의 여부 즉시 반영
           }
         },
         onError: (e) => {

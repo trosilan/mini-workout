@@ -96,24 +96,27 @@ function App() {
     }
   }, []);
 
+  // 알림 동의 여부 + 루틴 설정을 Supabase에 동기화 (발송기가 이 값을 읽음)
+  const syncNotifySettings = async () => {
+    if (!userKey) return;
+    const s = loadSettings();
+    const agreed = localStorage.getItem("jeongunwan.notifyAgreed") === "1";
+    await upsertNotifySettings(userKey, {
+      notify_agreed: agreed,
+      notify_start_hour: parseInt(s.notifyStart.split(":")[0]),
+      notify_end_hour: parseInt(s.notifyEnd.split(":")[0]),
+      notify_offset_minutes: s.offsetMinutes,
+      notify_days: s.enabledDays,
+    });
+  };
+
   if (!onboarded) {
     return (
       <OnboardingPage
         onLoginDone={() => setAuthCode(localStorage.getItem("jeongunwan.authCode"))}
         onComplete={async () => {
           localStorage.setItem("jeongunwan.onboarded", "1");
-          // 알림 동의 여부 + 루틴 설정을 Supabase에 저장
-          if (userKey) {
-            const s = loadSettings();
-            const agreed = localStorage.getItem("jeongunwan.notifyAgreed") === "1";
-            await upsertNotifySettings(userKey, {
-              notify_agreed: agreed,
-              notify_start_hour: parseInt(s.notifyStart.split(":")[0]),
-              notify_end_hour: parseInt(s.notifyEnd.split(":")[0]),
-              notify_offset_minutes: s.offsetMinutes,
-              notify_days: s.enabledDays,
-            });
-          }
+          await syncNotifySettings();
           setOnboarded(true);
         }}
       />
@@ -127,8 +130,9 @@ function App() {
   if (showEditRoutine) {
     return (
       <OnboardingPage
-        onComplete={() => {
+        onComplete={async () => {
           localStorage.setItem("jeongunwan.onboarded", "1");
+          await syncNotifySettings();
           setShowEditRoutine(false);
         }}
         onCancel={() => setShowEditRoutine(false)}
@@ -151,7 +155,15 @@ function App() {
   }
 
   if (showSettings) {
-    return <SettingsPage onBack={() => setShowSettings(false)} />;
+    return (
+      <SettingsPage
+        onBack={() => {
+          setShowSettings(false);
+          syncNotifySettings(); // 설정 변경/동의 여부를 DB에 반영
+        }}
+        onAgreed={syncNotifySettings}
+      />
+    );
   }
 
   if (showTimer) {
