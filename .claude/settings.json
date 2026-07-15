@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scoop --version)",
+      "PowerShell(Get-Command scoop -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command ax -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command claude -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-ExecutionPolicy -Scope CurrentUser)",
+      "PowerShell(Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression)"
+    ]
+  }
+}

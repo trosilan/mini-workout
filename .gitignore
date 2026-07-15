@@ -1,0 +1,19 @@
+# dependencies / build
+node_modules/
+dist/
+*.ait
+*.tsbuildinfo
+
+# env & secrets — 절대 커밋 금지
+.env
+.env.*
+*.key
+*.crt
+*.pem
+
+# misc
+.DS_Store
+Thumbs.db
+*.log
+.supabase/
+supabase/.temp/

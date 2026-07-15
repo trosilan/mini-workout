@@ -1,0 +1,27 @@
+name: Send workout notifications
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # 5분마다 (UTC 기준이지만 스크립트가 KST로 변환)
+  workflow_dispatch: # 수동 실행 버튼
+
+concurrency:
+  group: send-notifications
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Send notifications
+        run: node scripts/send-notifications.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TOSS_MTLS_CERT: ${{ secrets.TOSS_MTLS_CERT }}
+          TOSS_MTLS_KEY: ${{ secrets.TOSS_MTLS_KEY }}
