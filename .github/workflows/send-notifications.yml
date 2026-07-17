@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/5 * * * *" # 5분마다 (UTC 기준이지만 스크립트가 KST로 변환)
   workflow_dispatch: # 수동 실행 버튼
+    inputs:
+      test_key:
+        description: "테스트 발송할 anonKey (비우면 일반 발송)"
+        required: false
+        default: ""
 
 concurrency:
   group: send-notifications
@@ -25,3 +30,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TOSS_MTLS_CERT: ${{ secrets.TOSS_MTLS_CERT }}
           TOSS_MTLS_KEY: ${{ secrets.TOSS_MTLS_KEY }}
+          TEST_ANON_KEY: ${{ inputs.test_key }}

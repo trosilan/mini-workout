@@ -86,6 +86,39 @@ function sendBulk(anonKeys) {
   });
 }
 
+// ── 단건 테스트 모드: TEST_ANON_KEY가 있으면 그 키로만 1건 발송하고 종료 ────────
+const testKey = (process.env.TEST_ANON_KEY ?? "").trim();
+if (testKey) {
+  const body = JSON.stringify({ templateSetCode: TEMPLATE_SET_CODE, context: {} });
+  const res = await new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        host: TOSS_HOST,
+        path: "/api-partner/v1/apps-in-toss/messenger/send-message",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+          "x-anon-key": testKey,
+        },
+        cert: MTLS_CERT,
+        key: MTLS_KEY,
+      },
+      (r) => {
+        let data = "";
+        r.on("data", (c) => (data += c));
+        r.on("end", () => resolve({ status: r.statusCode ?? 0, body: data }));
+      }
+    );
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+  console.log(`[test] key=${testKey.slice(0, 8)}... → HTTP ${res.status}`);
+  console.log(`[test] response: ${res.body}`);
+  process.exit(0);
+}
+
 // ── 메인 ─────────────────────────────────────────────────────────────────────
 const users = await sb(
   "GET",
