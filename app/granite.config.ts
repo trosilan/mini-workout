@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: "스트레칭각",
     primaryColor: "#3182F6",
-    icon: "https://static.toss.im/appsintoss/50999/7b782b3b-f769-4ba7-89cb-da291ddf21fa.png",
+    icon: "https://static.toss.im/appsintoss/50999/1afb72da-2dbc-440c-aff4-dea3ae61b929.png",
   },
   web: {
     host: "localhost",
