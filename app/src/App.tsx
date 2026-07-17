@@ -114,10 +114,10 @@ function App() {
     return (
       <OnboardingPage
         onLoginDone={() => setAuthCode(localStorage.getItem("jeongunwan.authCode"))}
-        onComplete={async () => {
+        onComplete={() => {
           localStorage.setItem("jeongunwan.onboarded", "1");
-          await syncNotifySettings();
-          setOnboarded(true);
+          setOnboarded(true); // 화면 먼저 전환
+          syncNotifySettings(); // DB 동기화는 백그라운드로
         }}
       />
     );
@@ -130,10 +130,10 @@ function App() {
   if (showEditRoutine) {
     return (
       <OnboardingPage
-        onComplete={async () => {
+        onComplete={() => {
           localStorage.setItem("jeongunwan.onboarded", "1");
-          await syncNotifySettings();
-          setShowEditRoutine(false);
+          setShowEditRoutine(false); // 화면 먼저 전환
+          syncNotifySettings(); // DB 동기화는 백그라운드로
         }}
         onCancel={() => setShowEditRoutine(false)}
       />

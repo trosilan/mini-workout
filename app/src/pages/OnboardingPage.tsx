@@ -137,6 +137,8 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
   const [step, setStep] = useState<Step>(1);
   const [settings, setSettings] = useState<Settings>({ ...DEFAULT_SETTINGS, enabledExerciseId: "" });
   const [loginLoading, setLoginLoading] = useState(false);
+  const [doneLoading, setDoneLoading] = useState(false);
+  const agreementCleanupRef = useRef<(() => void) | null>(null);
 
   const update = (next: Partial<Settings>) =>
     setSettings((prev) => ({ ...prev, ...next }));
@@ -144,26 +146,50 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
   const sessionCount = getSessionCount(settings.notifyStart, settings.notifyEnd);
 
   const handleDone = () => {
+    if (doneLoading) return; // 연타 방지
     saveSettings(settings);
+    setDoneLoading(true);
+
     // 알림 동의 요청 (콘솔 발송 코드와 동일)
     const NOTIFICATION_TEMPLATE_CODE = "short-workout-notice";
+    let finished = false;
+    const finishOnce = (agreed: boolean) => {
+      if (finished) return;
+      finished = true;
+      try {
+        agreementCleanupRef.current?.();
+      } catch { /* ignore */ }
+      agreementCleanupRef.current = null;
+      if (agreed) localStorage.setItem("jeongunwan.notifyAgreed", "1");
+      setDoneLoading(false);
+      onComplete();
+    };
+
+    // SDK가 응답을 안 주는 경우에도 12초 후 온보딩은 계속 진행
+    const timer = setTimeout(() => finishOnce(false), 12000);
+
     try {
-      const cleanup = requestNotificationAgreement({
+      // 이전 리스너가 남아있으면 정리 (중복 등록 방지)
+      try {
+        agreementCleanupRef.current?.();
+      } catch { /* ignore */ }
+
+      agreementCleanupRef.current = requestNotificationAgreement({
         options: { templateCode: NOTIFICATION_TEMPLATE_CODE },
         onEvent: ({ type }) => {
-          cleanup();
-          if (type === "newAgreement" || type === "alreadyAgreed") {
-            localStorage.setItem("jeongunwan.notifyAgreed", "1");
-          }
-          onComplete();
+          clearTimeout(timer);
+          finishOnce(type === "newAgreement" || type === "alreadyAgreed");
         },
-        onError: () => {
-          cleanup();
-          onComplete();
+        onError: (e) => {
+          clearTimeout(timer);
+          console.error("[onboarding] 알림 동의 요청 실패:", e);
+          finishOnce(false);
         },
       });
-    } catch {
-      onComplete();
+    } catch (e) {
+      clearTimeout(timer);
+      console.error("[onboarding] 알림 동의 호출 불가:", e);
+      finishOnce(false);
     }
   };
 
@@ -656,8 +682,8 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
         background: "#fff",
         borderTop: "1px solid #f0f0f0",
       }}>
-        <Button display="full" size="xlarge" onClick={handleDone}>
-          시작하기
+        <Button display="full" size="xlarge" onClick={handleDone} disabled={doneLoading}>
+          {doneLoading ? "잠시만 기다려주세요..." : "시작하기"}
         </Button>
       </div>
     </div>

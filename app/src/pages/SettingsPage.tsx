@@ -162,6 +162,10 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
             localStorage.setItem("jeongunwan.notifyAgreed", "1");
             setNotifyAgreed(true);
             onAgreed?.(); // DB에 동의 여부 즉시 반영
+            if (type === "alreadyAgreed") {
+              // 이미 동의된 계정은 토스가 동의창을 다시 보여주지 않음 — 명시적으로 안내
+              alert("이미 알림 수신에 동의되어 있어요. 설정한 시간에 알림을 보내드릴게요!");
+            }
           }
         },
         onError: (e) => {
