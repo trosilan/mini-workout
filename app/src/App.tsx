@@ -132,11 +132,9 @@ function App() {
         points: getTotalPoints(),
       }
     );
-    // TODO: 진단 끝나면 이 알림 제거
+    // 실패만 사용자에게 알림 (조용한 실패 방지)
     if (err) {
       alert("설정 서버 저장 실패: " + err);
-    } else {
-      alert(`설정이 서버에 저장됐어요 ✓ (키: ${key.slice(0, 8)}..., 분: ${s.offsetMinutes})`);
     }
   };
 
