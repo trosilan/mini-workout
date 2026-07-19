@@ -118,13 +118,20 @@ function App() {
     }
     const s = loadSettings();
     const agreed = localStorage.getItem("jeongunwan.notifyAgreed") === "1";
-    const err = await upsertNotifySettings(key, {
-      notify_agreed: agreed,
-      notify_start_hour: parseInt(s.notifyStart.split(":")[0]),
-      notify_end_hour: parseInt(s.notifyEnd.split(":")[0]),
-      notify_offset_minutes: s.offsetMinutes,
-      notify_days: s.enabledDays,
-    });
+    const err = await upsertNotifySettings(
+      key,
+      {
+        notify_agreed: agreed,
+        notify_start_hour: parseInt(s.notifyStart.split(":")[0]),
+        notify_end_hour: parseInt(s.notifyEnd.split(":")[0]),
+        notify_offset_minutes: s.offsetMinutes,
+        notify_days: s.enabledDays,
+      },
+      {
+        nickname: localStorage.getItem("jeongunwan.nickname") ?? "나",
+        points: getTotalPoints(),
+      }
+    );
     // TODO: 진단 끝나면 이 알림 제거
     if (err) {
       alert("설정 서버 저장 실패: " + err);

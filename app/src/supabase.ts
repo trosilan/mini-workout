@@ -48,10 +48,13 @@ export async function upsertNotifySettings(
     notify_end_hour: number;
     notify_offset_minutes: number;
     notify_days: number[];
-  }
+  },
+  profile: { nickname: string; points: number }
 ): Promise<string | null> {
+  // 행이 없어 INSERT가 될 때도 NOT NULL 컬럼(nickname 등)을 채울 수 있게 프로필 포함
+  const safePoints = Number.isFinite(profile.points) ? profile.points : 0;
   const { error } = await supabase.from("users").upsert(
-    { user_key: userKey, ...settings },
+    { user_key: userKey, nickname: profile.nickname, points: safePoints, ...settings },
     { onConflict: "user_key" }
   );
   if (error) {
