@@ -96,18 +96,41 @@ function App() {
     }
   }, []);
 
+  // 상태가 아직 준비 안 됐어도 그 자리에서 키를 다시 구한다 (동기화 유실 방지)
+  const resolveUserKey = async (): Promise<string | null> => {
+    if (userKey) return userKey;
+    try {
+      const result = await getAnonymousKey();
+      const hash = result?.hash;
+      if (hash && typeof hash === "string" && hash.length > 0) return hash;
+    } catch {
+      // ignore
+    }
+    return localStorage.getItem("jeongunwan.localUserKey");
+  };
+
   // 알림 동의 여부 + 루틴 설정을 Supabase에 동기화 (발송기가 이 값을 읽음)
   const syncNotifySettings = async () => {
-    if (!userKey) return;
+    const key = await resolveUserKey();
+    if (!key) {
+      alert("설정 저장 실패: 사용자 키를 가져오지 못했어요.");
+      return;
+    }
     const s = loadSettings();
     const agreed = localStorage.getItem("jeongunwan.notifyAgreed") === "1";
-    await upsertNotifySettings(userKey, {
+    const err = await upsertNotifySettings(key, {
       notify_agreed: agreed,
       notify_start_hour: parseInt(s.notifyStart.split(":")[0]),
       notify_end_hour: parseInt(s.notifyEnd.split(":")[0]),
       notify_offset_minutes: s.offsetMinutes,
       notify_days: s.enabledDays,
     });
+    // TODO: 진단 끝나면 이 알림 제거
+    if (err) {
+      alert("설정 서버 저장 실패: " + err);
+    } else {
+      alert(`설정이 서버에 저장됐어요 ✓ (키: ${key.slice(0, 8)}..., 분: ${s.offsetMinutes})`);
+    }
   };
 
   if (!onboarded) {

@@ -49,12 +49,16 @@ export async function upsertNotifySettings(
     notify_offset_minutes: number;
     notify_days: number[];
   }
-): Promise<void> {
+): Promise<string | null> {
   const { error } = await supabase.from("users").upsert(
     { user_key: userKey, ...settings },
     { onConflict: "user_key" }
   );
-  if (error) console.error("[supabase] upsertNotifySettings failed:", error.message, error);
+  if (error) {
+    console.error("[supabase] upsertNotifySettings failed:", error.message, error);
+    return error.message;
+  }
+  return null;
 }
 
 export async function isNicknameTaken(nickname: string, currentUserKey?: string): Promise<boolean> {

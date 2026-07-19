@@ -270,6 +270,11 @@ export function ProfilePage({ onNicknameRequired, onLogin, userKey }: ProfilePag
           )}
         </List>
       )}
+
+      {/* 진단용: 내 식별키 + 앱 버전 */}
+      <p style={{ padding: "16px 24px 0", margin: 0, fontSize: 11, color: colors.grey400, wordBreak: "break-all" }}>
+        내 식별키: {userKey ?? "(로딩 중)"} · v2026.07.19
+      </p>
     </div>
   );
 }
