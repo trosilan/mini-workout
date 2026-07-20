@@ -38,6 +38,7 @@ export function ProfilePage({ onNicknameRequired, onLogin, userKey }: ProfilePag
 
   const [friends, setFriends] = useState<UserRow[]>([]);
   const [showFriends, setShowFriends] = useState(false);
+  const [showCodeSection, setShowCodeSection] = useState(false);
   const [myCode, setMyCode] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [codeBusy, setCodeBusy] = useState(false);
@@ -256,55 +257,82 @@ export function ProfilePage({ onNicknameRequired, onLogin, userKey }: ProfilePag
         </p>
       </div>
 
-      {/* 친구 초대 */}
-      <div style={{ padding: "0 24px 12px" }}>
+      {/* ── 친구 추가하기 ── */}
+      <p style={{ margin: "8px 24px 8px", fontSize: 13, fontWeight: "bold", color: colors.grey500 }}>
+        친구 추가하기
+      </p>
+
+      {/* 1순위: 초대 링크 */}
+      <div style={{ padding: "0 24px 8px" }}>
         <Button display="full" size="xlarge" onClick={handleInvite}>
-          {copied ? "링크 복사됐어요!" : "친구 초대하기"}
+          {copied ? "링크 복사됐어요!" : "초대 링크 보내기"}
         </Button>
+        <p style={{ margin: "8px 0 0", fontSize: 12, color: colors.grey500, textAlign: "center" }}>
+          친구가 링크로 들어오면 자동으로 친구가 돼요
+        </p>
       </div>
 
-      {/* 친구 코드 */}
+      {/* 2순위: 친구 코드 (접힌 보조 수단) */}
       <div style={{ padding: "0 24px 16px" }}>
-        <div
+        <button
+          onClick={() => setShowCodeSection((v) => !v)}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 16px",
-            background: colors.grey100,
-            borderRadius: 12,
-            marginBottom: 8,
+            background: "none",
+            border: "none",
+            padding: "4px 0",
+            fontSize: 13,
+            color: colors.grey500,
+            textDecoration: "underline",
+            cursor: "pointer",
           }}
         >
-          <div>
-            <p style={{ margin: 0, fontSize: 12, color: colors.grey500 }}>내 친구 코드</p>
-            <p style={{ margin: "2px 0 0", fontSize: 18, fontWeight: "bold", letterSpacing: 2, color: colors.grey900 }}>
-              {myCode ?? "생성 중..."}
-            </p>
+          링크가 안 되나요? 친구 코드로 추가하기 {showCodeSection ? "▲" : "▼"}
+        </button>
+
+        {showCodeSection && (
+          <div style={{ marginTop: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 16px",
+                background: colors.grey100,
+                borderRadius: 12,
+                marginBottom: 8,
+              }}
+            >
+              <div>
+                <p style={{ margin: 0, fontSize: 12, color: colors.grey500 }}>내 친구 코드 — 친구에게 알려주세요</p>
+                <p style={{ margin: "2px 0 0", fontSize: 18, fontWeight: "bold", letterSpacing: 2, color: colors.grey900 }}>
+                  {myCode ?? "생성 중..."}
+                </p>
+              </div>
+              <Button size="small" variant="weak" onClick={handleCopyCode} disabled={!myCode}>
+                복사
+              </Button>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <div style={{ flex: 1 }}>
+                <TextField
+                  variant="box"
+                  label="받은 코드 입력"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                  placeholder="예: AB3K7P"
+                  maxLength={6}
+                />
+              </div>
+              <Button
+                size="medium"
+                onClick={handleAddByCode}
+                disabled={codeBusy || codeInput.trim().length === 0}
+              >
+                {codeBusy ? "확인 중..." : "추가"}
+              </Button>
+            </div>
           </div>
-          <Button size="small" variant="weak" onClick={handleCopyCode} disabled={!myCode}>
-            복사
-          </Button>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
-            <TextField
-              variant="box"
-              label="친구 코드로 추가"
-              value={codeInput}
-              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-              placeholder="예: AB3K7P"
-              maxLength={6}
-            />
-          </div>
-          <Button
-            size="medium"
-            onClick={handleAddByCode}
-            disabled={codeBusy || codeInput.trim().length === 0}
-          >
-            {codeBusy ? "확인 중..." : "추가"}
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* 내 친구 — 접기/펼치기 */}
