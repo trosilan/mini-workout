@@ -196,7 +196,16 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
             아직 친구가 없어요
           </p>
           <p style={{ margin: 0, fontSize: 13, color: colors.grey500 }}>
-            초대 링크를 보내면 친구로 등록돼요
+            초대 링크나 친구 코드로 친구를 추가해보세요
+          </p>
+        </div>
+      ) : !loading && displayList.length === 0 ? (
+        <div style={{ padding: "24px", textAlign: "center" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: "bold", color: colors.grey800 }}>
+            {period === "week" ? "이번 주" : "이번 달"} 기록이 아직 없어요
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: colors.grey500 }}>
+            운동을 완료하면 여기에 올라와요 💪
           </p>
         </div>
       ) : (
