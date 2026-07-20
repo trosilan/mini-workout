@@ -1,5 +1,5 @@
 import { colors } from "@toss/tds-colors";
-import { Button, List, ListRow, Top } from "@toss/tds-mobile";
+import { Button, List, ListRow, TextField, Top } from "@toss/tds-mobile";
 import { useEffect, useState } from "react";
 import { getTossShareLink, share } from "@apps-in-toss/web-framework";
 import {
@@ -7,6 +7,8 @@ import {
   fetchFriends,
   fetchLeaderboard,
   fetchLeaderboardSince,
+  isNicknameTaken,
+  upsertUser,
   type UserRow,
 } from "../supabase";
 import { getOrCreateNickname, getTotalPoints, monthStartISO, weekStartISO } from "../data";
@@ -41,8 +43,39 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const myNickname = getOrCreateNickname();
+  const [myNickname, setMyNickname] = useState(() => getOrCreateNickname());
   const myAllTimePoints = getTotalPoints();
+
+  // 닉네임 인라인 수정
+  const [editingNick, setEditingNick] = useState(false);
+  const [nickInput, setNickInput] = useState("");
+  const [nickError, setNickError] = useState<string | null>(null);
+  const [nickChecking, setNickChecking] = useState(false);
+
+  const handleNickSave = async () => {
+    const trimmed = nickInput.trim();
+    if (!trimmed) return;
+    setNickChecking(true);
+    setNickError(null);
+    try {
+      const taken = await isNicknameTaken(trimmed, userKey ?? undefined);
+      if (taken) {
+        setNickError("이미 사용 중인 닉네임이에요.");
+        return;
+      }
+      localStorage.setItem("jeongunwan.nickname", trimmed);
+      setMyNickname(trimmed);
+      setEditingNick(false);
+      setNickInput("");
+      // 목록에 내 이름 즉시 반영
+      setEntries((prev) => prev.map((e) => (e.id === userKey ? { ...e, name: trimmed } : e)));
+      if (userKey) {
+        await upsertUser(userKey, trimmed, getTotalPoints());
+      }
+    } finally {
+      setNickChecking(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +160,49 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
           </Top.SubtitleParagraph>
         }
       />
+
+      {/* 닉네임 작은 수정 버튼 / 인라인 편집 */}
+      {isLoggedIn && (
+        editingNick ? (
+          <div style={{ padding: "0 24px 12px" }}>
+            <TextField
+              variant="box"
+              label="새 닉네임"
+              value={nickInput}
+              onChange={(e) => { setNickInput(e.target.value); setNickError(null); }}
+              maxLength={12}
+            />
+            {nickError && (
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: colors.red500 }}>{nickError}</p>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <Button size="medium" color="dark" variant="weak" onClick={() => { setEditingNick(false); setNickError(null); }}>
+                취소
+              </Button>
+              <Button size="medium" onClick={handleNickSave} disabled={nickInput.trim().length === 0 || nickChecking}>
+                {nickChecking ? "확인 중..." : "저장"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: "0 24px 10px" }}>
+            <button
+              onClick={() => { setNickInput(myNickname); setEditingNick(true); }}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                fontSize: 13,
+                color: colors.grey500,
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              ✏️ 닉네임 수정
+            </button>
+          </div>
+        )
+      )}
 
       {/* 스코프 탭: 전체 랭킹 / 친구 */}
       <div style={{ display: "flex", gap: 8, padding: "0 24px 10px" }}>
