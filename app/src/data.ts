@@ -303,9 +303,8 @@ export function getTodayHours(): number[] {
 }
 
 export function canCompleteNow(): boolean {
-  const state = loadWorkoutState();
-  if (!state.lastCompletedAt) return true;
-  return Date.now() - state.lastCompletedAt >= ONE_HOUR_MS;
+  // 시간대 슬롯당 1회 규칙과 동일
+  return !isCurrentHourDone();
 }
 
 export function isCurrentHourDone(): boolean {
@@ -328,8 +327,10 @@ export function completeExercise(): CompleteResult {
   const settings = loadSettings();
   const totalSessions = totalSessionsInRoutine(settings);
 
+  // 시간대(hour) 슬롯당 1회 적립 — 13시에 했으면 14시 정각부터 바로 가능.
+  // (롤링 60분 방식은 매시 같은 분에 오는 푸시와 어긋나 기록이 증발했음)
   const todayHoursBefore = workoutState.dailyHours[todayKey()] ?? [];
-  if (workoutState.lastCompletedAt && now - workoutState.lastCompletedAt < ONE_HOUR_MS) {
+  if (todayHoursBefore.includes(new Date().getHours())) {
     return {
       awarded: false,
       pointsEarned: 0,

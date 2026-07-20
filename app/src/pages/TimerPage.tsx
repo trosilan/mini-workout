@@ -15,6 +15,7 @@ import { BannerAd } from "../components/BannerAd";
 import {
   completeExercise,
   EXERCISES,
+  getTodayHours,
   loadSettings,
   type Exercise,
 } from "../data";
@@ -159,8 +160,17 @@ export function TimerPage({ onBack, onAward }: TimerPageProps) {
       return;
     }
 
+    // 비정상적으로 빠른 완료(치팅 의심)는 적립 없이 완료 화면으로 (화면 멈춤 방지)
     const elapsed = startedAtRef.current ? Date.now() - startedAtRef.current : Infinity;
-    if (elapsed < 30000) {
+    if (elapsed < 25000) {
+      setResult({
+        awarded: false,
+        pointsEarned: 0,
+        todayCount: getTodayHours().length,
+        dailySuccess: false,
+        perfectDay: false,
+      });
+      setPhase("done");
       return;
     }
 
