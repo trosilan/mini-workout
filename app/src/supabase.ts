@@ -132,6 +132,52 @@ export async function fetchFriendKeys(userKey: string): Promise<string[]> {
   return (data ?? []).map((r) => r.friend_key);
 }
 
+// ─── 친구 코드 (링크 대신 수동 입력용) ──────────────────────────────────────────
+
+function genFriendCode(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 혼동 문자(I,L,O,0,1) 제외
+  let s = "";
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+/** 내 친구 코드를 반환. 없으면 생성해서 저장(유니크 충돌 시 재시도). */
+export async function getOrCreateFriendCode(userKey: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("users")
+    .select("friend_code")
+    .eq("user_key", userKey)
+    .maybeSingle();
+  if (data?.friend_code) return data.friend_code;
+
+  for (let i = 0; i < 5; i++) {
+    const code = genFriendCode();
+    const { error } = await supabase
+      .from("users")
+      .update({ friend_code: code })
+      .eq("user_key", userKey);
+    if (!error) return code;
+  }
+  console.error("[supabase] friend_code 생성 실패");
+  return null;
+}
+
+/** 친구 코드로 유저 찾기. */
+export async function findUserByFriendCode(code: string): Promise<UserRow | null> {
+  const normalized = code.trim().toUpperCase();
+  if (!normalized) return null;
+  const { data, error } = await supabase
+    .from("users")
+    .select("user_key, nickname, points")
+    .eq("friend_code", normalized)
+    .maybeSingle();
+  if (error) {
+    console.error("[supabase] findUserByFriendCode failed:", error.message);
+    return null;
+  }
+  return data ?? null;
+}
+
 /** 내 친구들의 프로필(닉네임/누적포인트) 목록. */
 export async function fetchFriends(userKey: string): Promise<UserRow[]> {
   const keys = await fetchFriendKeys(userKey);

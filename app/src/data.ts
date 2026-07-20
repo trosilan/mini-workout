@@ -243,6 +243,23 @@ export function dateKey(date: Date): string {
 
 export const ONE_HOUR_MS = 60 * 60 * 1000;
 
+// ─── 닉네임 ───────────────────────────────────────────────────────────────────
+
+const NICK_ADJ = ["활기찬", "유연한", "상쾌한", "기운찬", "느긋한", "날쌘", "튼튼한", "씩씩한"];
+const NICK_NOUN = ["스트레처", "거북이", "기린", "수달", "펭귄", "치타", "알파카", "판다"];
+
+/** 저장된 닉네임을 반환하고, 없으면 무해한 랜덤 닉네임을 만들어 저장 후 반환. */
+export function getOrCreateNickname(): string {
+  const saved = localStorage.getItem("jeongunwan.nickname");
+  if (saved && saved.trim() !== "") return saved;
+  const nick =
+    NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] +
+    NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)] +
+    String(Math.floor(10 + Math.random() * 90));
+  localStorage.setItem("jeongunwan.nickname", nick);
+  return nick;
+}
+
 /** 이번 주 시작(월요일 00:00) ISO 문자열 */
 export function weekStartISO(): string {
   const now = new Date();

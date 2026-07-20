@@ -1,8 +1,9 @@
 import { colors } from "@toss/tds-colors";
-import { Button, ProgressBar, Top } from "@toss/tds-mobile";
+import { Button, ProgressBar, TextField, Top } from "@toss/tds-mobile";
 import { useState, useRef, useEffect } from "react";
 import { appLogin, requestNotificationAgreement } from "@apps-in-toss/web-framework";
-import { EXERCISES, DEFAULT_SETTINGS, saveSettings, type Settings } from "../data";
+import { EXERCISES, DEFAULT_SETTINGS, getOrCreateNickname, saveSettings, type Settings } from "../data";
+import { isNicknameTaken } from "../supabase";
 
 interface OnboardingPageProps {
   onComplete: () => void;
@@ -10,7 +11,7 @@ interface OnboardingPageProps {
   onLoginDone?: () => void;
 }
 
-type Step = 1 | 1.5 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 1.5 | 1.7 | 2 | 3 | 4 | 5 | 6;
 
 function getSessionCount(start: string, end: string): number {
   const [sh] = start.split(":").map(Number);
@@ -199,11 +200,41 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
       const { authorizationCode } = await appLogin();
       localStorage.setItem("jeongunwan.authCode", authorizationCode);
       onLoginDone?.();
-      setStep(2);
+      setStep(1.7);
     } catch (e) {
       alert("로그인 오류: " + String(e));
     } finally {
       setLoginLoading(false);
+    }
+  };
+
+  // 닉네임 스텝 상태
+  const [nickInput, setNickInput] = useState(() => getOrCreateNickname());
+  const [nickError, setNickError] = useState<string | null>(null);
+  const [nickChecking, setNickChecking] = useState(false);
+
+  const handleNicknameNext = async () => {
+    const trimmed = nickInput.trim();
+    if (!trimmed) return;
+    setNickChecking(true);
+    setNickError(null);
+    try {
+      const mine = localStorage.getItem("jeongunwan.nickname");
+      if (trimmed !== mine) {
+        const taken = await isNicknameTaken(trimmed);
+        if (taken) {
+          setNickError("이미 사용 중인 닉네임이에요.");
+          return;
+        }
+      }
+      localStorage.setItem("jeongunwan.nickname", trimmed);
+      setStep(2);
+    } catch {
+      // 네트워크 오류 시에도 온보딩은 계속 (로컬 저장)
+      localStorage.setItem("jeongunwan.nickname", trimmed);
+      setStep(2);
+    } finally {
+      setNickChecking(false);
     }
   };
 
@@ -343,9 +374,54 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
             size="xlarge"
             color="dark"
             variant="weak"
-            onClick={() => setStep(2)}
+            onClick={() => setStep(1.7)}
           >
             로그인 없이 시작하기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 1.7: 닉네임 설정 (랜덤 추천 미리 채움)
+  if (step === 1.7) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#fff" }}>
+        <div style={{ flex: 1 }}>
+          <Top
+            upperGap={32}
+            lowerGap={8}
+            title={<Top.TitleParagraph size={22}>어떻게 불러드릴까요?</Top.TitleParagraph>}
+            subtitleBottom={
+              <Top.SubtitleParagraph size={15} color={colors.grey600}>
+                리더보드에 표시될 닉네임이에요{"\n"}나중에 프로필에서 바꿀 수 있어요
+              </Top.SubtitleParagraph>
+            }
+          />
+          <div style={{ padding: "0 24px" }}>
+            <TextField
+              variant="box"
+              label="닉네임"
+              value={nickInput}
+              onChange={(e) => {
+                setNickInput(e.target.value);
+                setNickError(null);
+              }}
+              maxLength={12}
+            />
+            {nickError && (
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: colors.red500 }}>{nickError}</p>
+            )}
+          </div>
+        </div>
+        <div style={{ padding: "0 24px 40px" }}>
+          <Button
+            display="full"
+            size="xlarge"
+            onClick={handleNicknameNext}
+            disabled={nickInput.trim().length === 0 || nickChecking}
+          >
+            {nickChecking ? "확인 중..." : "다음"}
           </Button>
         </div>
       </div>

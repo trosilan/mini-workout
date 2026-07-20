@@ -9,7 +9,7 @@ import {
   fetchLeaderboardSince,
   type UserRow,
 } from "../supabase";
-import { getTotalPoints, monthStartISO, weekStartISO } from "../data";
+import { getOrCreateNickname, getTotalPoints, monthStartISO, weekStartISO } from "../data";
 import { inviteDeepLink } from "../referral";
 
 const DUMMY_LEADERBOARD = [
@@ -41,7 +41,7 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const myNickname = localStorage.getItem("jeongunwan.nickname") ?? "나";
+  const myNickname = getOrCreateNickname();
   const myAllTimePoints = getTotalPoints();
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getAnonymousKey } from "@apps-in-toss/web-framework";
 import "./App.css";
 import { fetchUser, upsertUser, upsertNotifySettings, recordFriendship, logPointEvent } from "./supabase";
-import { getTotalPoints, loadSettings, setTotalPoints } from "./data";
+import { getOrCreateNickname, getTotalPoints, loadSettings, setTotalPoints } from "./data";
 import { readLaunchPath, readReferralKey } from "./referral";
 import { CalendarPage } from "./pages/CalendarPage";
 import { HomePage } from "./pages/HomePage";
@@ -55,19 +55,18 @@ function App() {
           localStorage.setItem("jeongunwan.nickname", row.nickname);
           setTotalPoints(row.points);
         } else {
-          const nickname = localStorage.getItem("jeongunwan.nickname") ?? "나";
+          const nickname = getOrCreateNickname();
           await upsertUser(key, nickname, getTotalPoints());
         }
       } catch {
         // Supabase 연결 실패 시 무시
       }
 
-      // 초대 링크로 들어왔으면 친구 등록 (한 번만)
+      // 초대 링크로 들어왔으면 친구 등록 (upsert라 중복 안전 — 여러 친구/재시도 모두 OK)
       try {
         const ref = readReferralKey();
-        if (ref && ref !== key && localStorage.getItem("jeongunwan.referralDone") !== "1") {
+        if (ref && ref !== key) {
           await recordFriendship(key, ref);
-          localStorage.setItem("jeongunwan.referralDone", "1");
         }
       } catch {
         // ignore
@@ -128,7 +127,7 @@ function App() {
         notify_days: s.enabledDays,
       },
       {
-        nickname: localStorage.getItem("jeongunwan.nickname") ?? "나",
+        nickname: getOrCreateNickname(),
         points: getTotalPoints(),
       }
     );
@@ -174,7 +173,7 @@ function App() {
         onClose={async () => {
           setShowWorkout(false);
           if (userKey) {
-            const nickname = localStorage.getItem("jeongunwan.nickname") ?? "나";
+            const nickname = getOrCreateNickname();
             await upsertUser(userKey, nickname, getTotalPoints());
           }
         }}
@@ -200,7 +199,7 @@ function App() {
         onBack={() => setShowTimer(false)}
         onAward={async (pointsEarned) => {
           if (!userKey) return;
-          const nickname = localStorage.getItem("jeongunwan.nickname") ?? "나";
+          const nickname = getOrCreateNickname();
           await Promise.all([
             upsertUser(userKey, nickname, getTotalPoints()),
             logPointEvent(userKey, pointsEarned),
@@ -252,7 +251,7 @@ function App() {
             onLogin={async () => {
               setAuthCode(localStorage.getItem("jeongunwan.authCode"));
               if (userKey) {
-                const nickname = localStorage.getItem("jeongunwan.nickname") ?? "나";
+                const nickname = getOrCreateNickname();
                 await upsertUser(userKey, nickname, getTotalPoints());
               }
             }}

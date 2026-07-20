@@ -4,7 +4,15 @@ import { appLogin, getTossShareLink, setClipboardText, share } from "@apps-in-to
 import { useEffect, useState } from "react";
 import { getTotalPoints } from "../data";
 import { inviteDeepLink } from "../referral";
-import { fetchFriends, isNicknameTaken, upsertUser, type UserRow } from "../supabase";
+import {
+  fetchFriends,
+  findUserByFriendCode,
+  getOrCreateFriendCode,
+  isNicknameTaken,
+  recordFriendship,
+  upsertUser,
+  type UserRow,
+} from "../supabase";
 
 interface ProfilePageProps {
   onNicknameRequired?: () => void;
@@ -29,12 +37,52 @@ export function ProfilePage({ onNicknameRequired, onLogin, userKey }: ProfilePag
   const [nicknameChecking, setNicknameChecking] = useState(false);
 
   const [friends, setFriends] = useState<UserRow[]>([]);
+  const [myCode, setMyCode] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
 
   useEffect(() => {
     if (authCode && userKey) {
       fetchFriends(userKey).then(setFriends);
+      getOrCreateFriendCode(userKey).then(setMyCode);
     }
   }, [authCode, userKey]);
+
+  const handleCopyCode = async () => {
+    if (!myCode) return;
+    try {
+      await setClipboardText(myCode);
+    } catch {
+      try {
+        await navigator.clipboard.writeText(myCode);
+      } catch {
+        // ignore
+      }
+    }
+    alert("친구 코드가 복사됐어요!");
+  };
+
+  const handleAddByCode = async () => {
+    if (!userKey) return;
+    setCodeBusy(true);
+    try {
+      const found = await findUserByFriendCode(codeInput);
+      if (!found) {
+        alert("해당 코드의 친구를 찾지 못했어요. 코드를 다시 확인해주세요.");
+        return;
+      }
+      if (found.user_key === userKey) {
+        alert("본인 코드는 등록할 수 없어요 😅");
+        return;
+      }
+      await recordFriendship(userKey, found.user_key);
+      setCodeInput("");
+      fetchFriends(userKey).then(setFriends);
+      alert(`${found.nickname}님과 친구가 됐어요!`);
+    } finally {
+      setCodeBusy(false);
+    }
+  };
 
   const handleLogin = async () => {
     setLoginLoading(true);
@@ -232,6 +280,52 @@ export function ProfilePage({ onNicknameRequired, onLogin, userKey }: ProfilePag
           <Button display="full" size="xlarge" onClick={handleInvite}>
             {copied ? "링크 복사됐어요!" : "친구 초대하기"}
           </Button>
+        </div>
+      )}
+
+      {/* 친구 코드 */}
+      {authCode && (
+        <div style={{ padding: "0 24px 16px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 16px",
+              background: colors.grey100,
+              borderRadius: 12,
+              marginBottom: 8,
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: colors.grey500 }}>내 친구 코드</p>
+              <p style={{ margin: "2px 0 0", fontSize: 18, fontWeight: "bold", letterSpacing: 2, color: colors.grey900 }}>
+                {myCode ?? "생성 중..."}
+              </p>
+            </div>
+            <Button size="small" variant="weak" onClick={handleCopyCode} disabled={!myCode}>
+              복사
+            </Button>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <div style={{ flex: 1 }}>
+              <TextField
+                variant="box"
+                label="친구 코드로 추가"
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                placeholder="예: AB3K7P"
+                maxLength={6}
+              />
+            </div>
+            <Button
+              size="medium"
+              onClick={handleAddByCode}
+              disabled={codeBusy || codeInput.trim().length === 0}
+            >
+              {codeBusy ? "확인 중..." : "추가"}
+            </Button>
+          </div>
         </div>
       )}
 
