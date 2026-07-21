@@ -28,6 +28,9 @@ function formatHourLabel(h: number): string {
   return `오후 ${h - 12}시`;
 }
 
+// 탭 이동 후 돌아와도 즉시 보이도록 모듈 레벨 캐시 (백그라운드 갱신)
+let friendsTodayCache: FriendToday[] = [];
+
 function friendRoutineHours(f: FriendToday): number[] {
   const hours: number[] = [];
   if (f.routineStart === f.routineEnd) return hours;
@@ -41,13 +44,17 @@ function friendRoutineHours(f: FriendToday): number[] {
 }
 
 export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpenTimer, onOpenReward, userKey }: HomePageProps) {
-  const [friendsToday, setFriendsToday] = useState<FriendToday[]>([]);
+  const [friendsToday, setFriendsToday] = useState<FriendToday[]>(friendsTodayCache);
   const [selectedFriend, setSelectedFriend] = useState<FriendToday | null>(null);
   const [nudgeBusy, setNudgeBusy] = useState(false);
 
   useEffect(() => {
     if (userKey) {
-      fetchFriendsToday(userKey).then(setFriendsToday);
+      // 캐시를 먼저 보여주고 백그라운드에서 최신화
+      fetchFriendsToday(userKey).then((list) => {
+        friendsTodayCache = list;
+        setFriendsToday(list);
+      });
     }
   }, [userKey]);
 
@@ -328,8 +335,8 @@ export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpe
                   <p
                     style={{
                       margin: 0,
-                      fontSize: 20,
-                      fontWeight: "bold",
+                      fontSize: 15,
+                      fontWeight: 500,
                       color: f.isRestDay
                         ? colors.grey400
                         : f.doneHours.length > 0

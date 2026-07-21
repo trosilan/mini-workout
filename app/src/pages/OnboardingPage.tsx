@@ -450,6 +450,7 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
 
         <div style={{ flex: 1, padding: "0 24px" }}>
           <DrumPicker
+            key="start-picker"
             value={settings.notifyStart}
             onChange={(v) => update({ notifyStart: v })}
           />
@@ -492,6 +493,7 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
 
         <div style={{ flex: 1, padding: "0 24px" }}>
           <DrumPicker
+            key="end-picker"
             value={settings.notifyEnd}
             onChange={(v) => update({ notifyEnd: v })}
           />

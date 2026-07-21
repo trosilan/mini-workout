@@ -149,23 +149,26 @@ export async function fetchFriendsToday(userKey: string): Promise<FriendToday[]>
   const keys = await fetchFriendKeys(userKey);
   if (keys.length === 0) return [];
 
-  const { data: users, error } = await supabase
-    .from("users")
-    .select("user_key, nickname, notify_start_hour, notify_end_hour, notify_days")
-    .in("user_key", keys);
-  if (error || !users) {
-    if (error) console.error("[supabase] fetchFriendsToday failed:", error.message);
-    return [];
-  }
-
-  // 오늘 자정 이후의 운동 완료 이벤트
+  // 프로필 + 오늘 이벤트를 병렬 조회 (로딩 속도)
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const { data: events } = await supabase
-    .from("point_events")
-    .select("user_key, created_at")
-    .in("user_key", keys)
-    .gte("created_at", dayStart);
+  const [usersRes, eventsRes] = await Promise.all([
+    supabase
+      .from("users")
+      .select("user_key, nickname, notify_start_hour, notify_end_hour, notify_days")
+      .in("user_key", keys),
+    supabase
+      .from("point_events")
+      .select("user_key, created_at")
+      .in("user_key", keys)
+      .gte("created_at", dayStart),
+  ]);
+  const users = usersRes.data;
+  if (usersRes.error || !users) {
+    if (usersRes.error) console.error("[supabase] fetchFriendsToday failed:", usersRes.error.message);
+    return [];
+  }
+  const events = eventsRes.data;
 
   const hoursByKey: Record<string, number[]> = {};
   (events ?? []).forEach((ev: { user_key: string; created_at: string }) => {

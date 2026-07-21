@@ -134,6 +134,80 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
     return `${rank}`;
   };
 
+  // 스크롤 내리다 살짝 올리면 탭 메뉴가 상단에 떠서 나타남
+  const [showFloatTabs, setShowFloatTabs] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+      lastY = y;
+      if (y < 280) {
+        setShowFloatTabs(false); // 원래 탭이 보이는 위치면 플로팅 불필요
+        return;
+      }
+      if (delta < -4) setShowFloatTabs(true); // 위로 스크롤 → 표시
+      else if (delta > 4) setShowFloatTabs(false); // 아래로 스크롤 → 숨김
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const renderTabRows = () => (
+    <>
+      {/* 스코프 탭: 전체 랭킹 / 친구 */}
+      <div style={{ display: "flex", gap: 8, padding: "0 24px 10px" }}>
+        {(["all", "friends"] as Scope[]).map((s) => {
+          const active = scope === s;
+          return (
+            <button
+              key={s}
+              onClick={() => setScope(s)}
+              style={{
+                flex: 1,
+                padding: "10px 0",
+                borderRadius: 10,
+                border: "none",
+                fontSize: 15,
+                fontWeight: active ? "bold" : "normal",
+                backgroundColor: active ? colors.blue500 : colors.grey100,
+                color: active ? colors.white : colors.grey700,
+                cursor: "pointer",
+              }}
+            >
+              {scopeLabel[s]}
+            </button>
+          );
+        })}
+      </div>
+      {/* 기간 탭: 전체 누적 / 주간 / 월간 */}
+      <div style={{ display: "flex", gap: 8, padding: "0 24px 16px" }}>
+        {(["all", "week", "month"] as Period[]).map((p) => {
+          const active = period === p;
+          return (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              style={{
+                flex: 1,
+                padding: "8px 0",
+                borderRadius: 20,
+                border: `1.5px solid ${active ? colors.blue500 : colors.grey200}`,
+                fontSize: 14,
+                fontWeight: active ? "bold" : "normal",
+                backgroundColor: active ? colors.blue50 : colors.white,
+                color: active ? colors.blue500 : colors.grey600,
+                cursor: "pointer",
+              }}
+            >
+              {periodLabel[p]}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+
   const handleShare = async () => {
     try {
       const link = await getTossShareLink(inviteDeepLink(userKey ?? ""));
@@ -207,57 +281,25 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
         </div>
       )}
 
-      {/* 스코프 탭: 전체 랭킹 / 친구 */}
-      <div style={{ display: "flex", gap: 8, padding: "0 24px 10px" }}>
-        {(["all", "friends"] as Scope[]).map((s) => {
-          const active = scope === s;
-          return (
-            <button
-              key={s}
-              onClick={() => setScope(s)}
-              style={{
-                flex: 1,
-                padding: "10px 0",
-                borderRadius: 10,
-                border: "none",
-                fontSize: 15,
-                fontWeight: active ? "bold" : "normal",
-                backgroundColor: active ? colors.blue500 : colors.grey100,
-                color: active ? colors.white : colors.grey700,
-                cursor: "pointer",
-              }}
-            >
-              {scopeLabel[s]}
-            </button>
-          );
-        })}
-      </div>
+      {renderTabRows()}
 
-      {/* 기간 탭: 전체 / 주간 / 월간 */}
-      <div style={{ display: "flex", gap: 8, padding: "0 24px 16px" }}>
-        {(["all", "week", "month"] as Period[]).map((p) => {
-          const active = period === p;
-          return (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              style={{
-                flex: 1,
-                padding: "8px 0",
-                borderRadius: 20,
-                border: `1.5px solid ${active ? colors.blue500 : colors.grey200}`,
-                fontSize: 14,
-                fontWeight: active ? "bold" : "normal",
-                backgroundColor: active ? colors.blue50 : colors.white,
-                color: active ? colors.blue500 : colors.grey600,
-                cursor: "pointer",
-              }}
-            >
-              {periodLabel[p]}
-            </button>
-          );
-        })}
-      </div>
+      {/* 위로 스크롤 시 상단 플로팅 탭 */}
+      {showFloatTabs && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            background: "#fff",
+            paddingTop: 12,
+            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+          }}
+        >
+          {renderTabRows()}
+        </div>
+      )}
 
       {/* 로그인+친구 탭인데 초대 유도 */}
       {isLoggedIn && (
