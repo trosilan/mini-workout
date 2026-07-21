@@ -234,6 +234,7 @@ function App() {
             onOpenSettings={() => setShowSettings(true)}
             onOpenTimer={() => setShowTimer(true)}
             onOpenReward={() => setShowReward(true)}
+            userKey={userKey}
           />
         )}
         {tab === 1 && <CalendarPage />}

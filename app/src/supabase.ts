@@ -132,6 +132,80 @@ export async function fetchFriendKeys(userKey: string): Promise<string[]> {
   return (data ?? []).map((r) => r.friend_key);
 }
 
+// ─── 친구 오늘 현황 + 콕 찌르기 ─────────────────────────────────────────────────
+
+export interface FriendToday {
+  user_key: string;
+  nickname: string;
+  doneHours: number[];
+  routineStart: number;
+  routineEnd: number;
+  isRestDay: boolean;
+  planned: number;
+}
+
+/** 친구들의 오늘 운동 현황 (point_events 기반). */
+export async function fetchFriendsToday(userKey: string): Promise<FriendToday[]> {
+  const keys = await fetchFriendKeys(userKey);
+  if (keys.length === 0) return [];
+
+  const { data: users, error } = await supabase
+    .from("users")
+    .select("user_key, nickname, notify_start_hour, notify_end_hour, notify_days")
+    .in("user_key", keys);
+  if (error || !users) {
+    if (error) console.error("[supabase] fetchFriendsToday failed:", error.message);
+    return [];
+  }
+
+  // 오늘 자정 이후의 운동 완료 이벤트
+  const now = new Date();
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const { data: events } = await supabase
+    .from("point_events")
+    .select("user_key, created_at")
+    .in("user_key", keys)
+    .gte("created_at", dayStart);
+
+  const hoursByKey: Record<string, number[]> = {};
+  (events ?? []).forEach((ev: { user_key: string; created_at: string }) => {
+    const h = new Date(ev.created_at).getHours();
+    (hoursByKey[ev.user_key] ??= []).push(h);
+  });
+
+  const dow = now.getDay();
+  return users.map((u) => {
+    const start = u.notify_start_hour ?? 9;
+    const end = u.notify_end_hour ?? 18;
+    const days: number[] = u.notify_days ?? [1, 2, 3, 4, 5];
+    const planned = start < end ? end - start : 24 - start + end;
+    return {
+      user_key: u.user_key,
+      nickname: u.nickname,
+      doneHours: [...new Set(hoursByKey[u.user_key] ?? [])].sort((a, b) => a - b),
+      routineStart: start,
+      routineEnd: end,
+      isRestDay: !days.includes(dow),
+      planned,
+    };
+  });
+}
+
+/** 콕 찌르기 — 같은 상대에게 시간당 1회. 발송기(GitHub Actions)가 큐를 읽어 푸시 전송. */
+export async function sendPoke(fromKey: string, toKey: string): Promise<"ok" | "already" | "error"> {
+  const now = new Date();
+  const hourKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}`;
+  const { error } = await supabase
+    .from("pokes")
+    .insert({ from_key: fromKey, to_key: toKey, hour_key: hourKey });
+  if (!error) return "ok";
+  if (error.code === "23505") return "already"; // 시간당 1회 제한(unique)
+  console.error("[supabase] sendPoke failed:", error.message);
+  return "error";
+}
+
 // ─── 친구 코드 (링크 대신 수동 입력용) ──────────────────────────────────────────
 
 function genFriendCode(): string {

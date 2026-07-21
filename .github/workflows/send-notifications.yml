@@ -31,3 +31,4 @@ jobs:
           TOSS_MTLS_CERT: ${{ secrets.TOSS_MTLS_CERT }}
           TOSS_MTLS_KEY: ${{ secrets.TOSS_MTLS_KEY }}
           TEST_ANON_KEY: ${{ inputs.test_key }}
+          POKE_TEMPLATE_SET_CODE: ${{ secrets.POKE_TEMPLATE_SET_CODE }}

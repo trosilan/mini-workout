@@ -137,21 +137,84 @@ const due = (users ?? []).filter((u) => {
 
 console.log(`[send] KST ${hourKey}:${String(kstMinute).padStart(2, "0")} agreed=${users?.length ?? 0} due=${due.length}`);
 
-if (due.length === 0) process.exit(0);
+if (due.length > 0) {
+  let sentKeys = [];
+  for (let i = 0; i < due.length; i += CHUNK_SIZE) {
+    const chunk = due.slice(i, i + CHUNK_SIZE).map((u) => u.user_key);
+    const res = await sendBulk(chunk);
+    console.log(`[send] bulk ${chunk.length}명 → HTTP ${res.status} ${res.body.slice(0, 300)}`);
+    if (res.status === 200) sentKeys = sentKeys.concat(chunk);
+  }
 
-let sentKeys = [];
-for (let i = 0; i < due.length; i += CHUNK_SIZE) {
-  const chunk = due.slice(i, i + CHUNK_SIZE).map((u) => u.user_key);
-  const res = await sendBulk(chunk);
-  console.log(`[send] bulk ${chunk.length}명 → HTTP ${res.status} ${res.body.slice(0, 300)}`);
-  if (res.status === 200) sentKeys = sentKeys.concat(chunk);
+  // 중복 발송 방지 마킹
+  if (sentKeys.length > 0) {
+    const list = sentKeys.map((k) => `"${k}"`).join(",");
+    await sb("PATCH", `/users?user_key=in.(${encodeURIComponent(list)})`, {
+      last_notified_hour: hourKey,
+    });
+    console.log(`[send] marked ${sentKeys.length} users as notified for ${hourKey}`);
+  }
 }
 
-// 중복 발송 방지 마킹
-if (sentKeys.length > 0) {
-  const list = sentKeys.map((k) => `"${k}"`).join(",");
-  await sb("PATCH", `/users?user_key=in.(${encodeURIComponent(list)})`, {
-    last_notified_hour: hourKey,
-  });
-  console.log(`[send] marked ${sentKeys.length} users as notified for ${hourKey}`);
+// ── 콕 찌르기 큐 처리 (최근 1시간 내 미발송분) ─────────────────────────────────
+const POKE_CODE = (process.env.POKE_TEMPLATE_SET_CODE ?? "").trim();
+if (POKE_CODE) {
+  function sendSingle(anonKey, templateSetCode, context) {
+    const body = JSON.stringify({ templateSetCode, context });
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          host: TOSS_HOST,
+          path: "/api-partner/v1/apps-in-toss/messenger/send-message",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(body),
+            "x-anon-key": anonKey,
+          },
+          cert: MTLS_CERT,
+          key: MTLS_KEY,
+        },
+        (r) => {
+          let data = "";
+          r.on("data", (c) => (data += c));
+          r.on("end", () => resolve({ status: r.statusCode ?? 0, body: data }));
+        }
+      );
+      req.on("error", reject);
+      req.write(body);
+      req.end();
+    });
+  }
+
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+  const pokes = await sb(
+    "GET",
+    `/pokes?sent=eq.false&created_at=gte.${encodeURIComponent(oneHourAgo)}&select=id,from_key,to_key`
+  );
+
+  if (pokes && pokes.length > 0) {
+    const fromKeys = [...new Set(pokes.map((p) => p.from_key))];
+    const list = fromKeys.map((k) => `"${k}"`).join(",");
+    const fromUsers = await sb(
+      "GET",
+      `/users?user_key=in.(${encodeURIComponent(list)})&select=user_key,nickname`
+    );
+    const nickMap = Object.fromEntries((fromUsers ?? []).map((u) => [u.user_key, u.nickname]));
+
+    const doneIds = [];
+    for (const p of pokes) {
+      const nick = nickMap[p.from_key] ?? "친구";
+      const res = await sendSingle(p.to_key, POKE_CODE, { nickname: nick });
+      console.log(`[poke] ${nick} → ${p.to_key.slice(0, 8)}... HTTP ${res.status} ${res.body.slice(0, 200)}`);
+      // 200이면 발송 완료, 4xx면 재시도해도 소용없으니 함께 종결
+      if (res.status === 200 || (res.status >= 400 && res.status < 500)) doneIds.push(p.id);
+    }
+    if (doneIds.length > 0) {
+      await sb("PATCH", `/pokes?id=in.(${doneIds.join(",")})`, { sent: true });
+      console.log(`[poke] processed ${doneIds.length} pokes`);
+    }
+  }
+} else {
+  console.log("[poke] POKE_TEMPLATE_SET_CODE 미설정 — 콕 찌르기 발송 건너뜀");
 }

@@ -1,5 +1,6 @@
 import { colors } from "@toss/tds-colors";
 import { Button, Top } from "@toss/tds-mobile";
+import { useEffect, useState } from "react";
 import {
   EXERCISES,
   getHoursInRoutine,
@@ -8,6 +9,7 @@ import {
   loadSettings,
   totalSessionsInRoutine,
 } from "../data";
+import { fetchFriendsToday, sendPoke, type FriendToday } from "../supabase";
 
 interface HomePageProps {
   onStartWorkout: () => void;
@@ -15,6 +17,7 @@ interface HomePageProps {
   onOpenSettings: () => void;
   onOpenTimer: () => void;
   onOpenReward: () => void;
+  userKey?: string | null;
 }
 
 function formatHourLabel(h: number): string {
@@ -23,7 +26,46 @@ function formatHourLabel(h: number): string {
   return `오후 ${h - 12}시`;
 }
 
-export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpenTimer, onOpenReward }: HomePageProps) {
+function friendRoutineHours(f: FriendToday): number[] {
+  const hours: number[] = [];
+  if (f.routineStart === f.routineEnd) return hours;
+  if (f.routineStart < f.routineEnd) {
+    for (let h = f.routineStart; h < f.routineEnd; h++) hours.push(h);
+  } else {
+    for (let h = f.routineStart; h < 24; h++) hours.push(h);
+    for (let h = 0; h < f.routineEnd; h++) hours.push(h);
+  }
+  return hours;
+}
+
+export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpenTimer, onOpenReward, userKey }: HomePageProps) {
+  const [friendsToday, setFriendsToday] = useState<FriendToday[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<FriendToday | null>(null);
+  const [pokeBusy, setPokeBusy] = useState(false);
+
+  useEffect(() => {
+    if (userKey) {
+      fetchFriendsToday(userKey).then(setFriendsToday);
+    }
+  }, [userKey]);
+
+  const handlePoke = async () => {
+    if (!userKey || !selectedFriend) return;
+    setPokeBusy(true);
+    try {
+      const r = await sendPoke(userKey, selectedFriend.user_key);
+      if (r === "ok") {
+        alert(`${selectedFriend.nickname}님을 콕 찔렀어요! 곧 알림이 가요 👉`);
+      } else if (r === "already") {
+        alert("이번 시간에는 이미 찔렀어요. 다음 시간에 또 찔러보세요!");
+      } else {
+        alert("찌르기에 실패했어요. 잠시 후 다시 시도해주세요.");
+      }
+    } finally {
+      setPokeBusy(false);
+    }
+  };
+
   const settings = loadSettings();
   const todayHours = getTodayHours();
   const routineHours = getHoursInRoutine(settings);
@@ -250,6 +292,140 @@ export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpe
           </div>
         )}
       </div>
+
+      {/* 오늘 친구들은 */}
+      {friendsToday.length > 0 && (
+        <>
+          <div style={{ height: 1, backgroundColor: colors.grey100, margin: "20px 0" }} />
+          <div style={{ padding: "0 20px 12px" }}>
+            <span style={{ fontSize: 17, fontWeight: "bold", color: colors.grey900 }}>
+              오늘 친구들은
+            </span>
+          </div>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <div style={{ display: "flex", gap: 10, padding: "0 20px 4px", width: "max-content" }}>
+              {friendsToday.map((f) => (
+                <button
+                  key={f.user_key}
+                  onClick={() => setSelectedFriend(f)}
+                  style={{
+                    width: 110,
+                    padding: "14px 12px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: colors.grey100,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      color: f.isRestDay
+                        ? colors.grey400
+                        : f.doneHours.length > 0
+                        ? colors.blue600
+                        : colors.grey600,
+                    }}
+                  >
+                    {f.isRestDay ? "휴식" : `${f.doneHours.length}/${f.planned}`}
+                  </p>
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: 13,
+                      color: colors.grey700,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.nickname}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 친구 상세 팝업 */}
+      {selectedFriend && (
+        <div
+          onClick={() => setSelectedFriend(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 340, background: "#fff", borderRadius: 16, padding: 20 }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <span style={{ fontSize: 18, fontWeight: "bold", color: colors.grey900 }}>
+                {selectedFriend.nickname}
+              </span>
+              <button
+                onClick={() => setSelectedFriend(null)}
+                style={{ background: "none", border: "none", fontSize: 18, color: colors.grey500, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: colors.grey500 }}>
+              {selectedFriend.isRestDay
+                ? "오늘은 쉬는 날이에요"
+                : `오늘 ${selectedFriend.doneHours.length}/${selectedFriend.planned}회 완료`}
+            </p>
+
+            {/* 친구의 오늘 시간대 차트 */}
+            {!selectedFriend.isRestDay && (
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", marginBottom: 16 }}>
+                <div style={{ display: "flex", gap: 4, width: "max-content", paddingBottom: 4 }}>
+                  {friendRoutineHours(selectedFriend).map((h) => {
+                    const isDone = selectedFriend.doneHours.includes(h);
+                    const isPast = h < new Date().getHours();
+                    return (
+                      <div key={h} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 30 }}>
+                        <div
+                          style={{
+                            width: 22,
+                            height: 48,
+                            borderRadius: 5,
+                            backgroundColor: isDone
+                              ? colors.green500
+                              : isPast
+                              ? colors.grey200
+                              : "transparent",
+                            border: !isDone && !isPast ? `1.5px dashed ${colors.grey300}` : "none",
+                          }}
+                        />
+                        <span style={{ fontSize: 10, color: colors.grey500, marginTop: 3 }}>{h}시</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <Button display="full" size="large" onClick={handlePoke} disabled={pokeBusy}>
+              {pokeBusy ? "찌르는 중..." : "👉 콕 찌르기"}
+            </Button>
+            <p style={{ margin: "8px 0 0", fontSize: 11, color: colors.grey400, textAlign: "center" }}>
+              찌르면 친구에게 운동 독려 알림이 가요 (시간당 1번)
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 스트레칭 버튼 고정 영역 확보 */}
       <div style={{ height: 120 }} />
