@@ -152,56 +152,59 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
 
   return (
     <div style={{ paddingBottom: "80px" }}>
-      <Top
-        title={<Top.TitleParagraph size={22}>리더보드</Top.TitleParagraph>}
-        subtitleBottom={
-          <Top.SubtitleParagraph size={17}>
-            {isLoggedIn ? `${myNickname}으로 참여 중` : "참여하려면 로그인이 필요해요"}
-          </Top.SubtitleParagraph>
-        }
-      />
+      {/* 헤더: 제목 줄 오른쪽에 닉네임 수정 */}
+      <div style={{ position: "relative" }}>
+        <Top
+          title={<Top.TitleParagraph size={22}>리더보드</Top.TitleParagraph>}
+          subtitleBottom={
+            <Top.SubtitleParagraph size={17}>
+              {isLoggedIn ? `${myNickname}으로 참여 중` : "참여하려면 로그인이 필요해요"}
+            </Top.SubtitleParagraph>
+          }
+        />
+        {isLoggedIn && !editingNick && (
+          <button
+            onClick={() => { setNickInput(myNickname); setEditingNick(true); }}
+            style={{
+              position: "absolute",
+              top: 28,
+              right: 24,
+              background: "none",
+              border: "none",
+              padding: 0,
+              fontSize: 13,
+              color: colors.grey500,
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            ✏️ 닉네임 수정
+          </button>
+        )}
+      </div>
 
-      {/* 닉네임 작은 수정 버튼 / 인라인 편집 */}
-      {isLoggedIn && (
-        editingNick ? (
-          <div style={{ padding: "0 24px 12px" }}>
-            <TextField
-              variant="box"
-              label="새 닉네임"
-              value={nickInput}
-              onChange={(e) => { setNickInput(e.target.value); setNickError(null); }}
-              maxLength={12}
-            />
-            {nickError && (
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: colors.red500 }}>{nickError}</p>
-            )}
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <Button size="medium" color="dark" variant="weak" onClick={() => { setEditingNick(false); setNickError(null); }}>
-                취소
-              </Button>
-              <Button size="medium" onClick={handleNickSave} disabled={nickInput.trim().length === 0 || nickChecking}>
-                {nickChecking ? "확인 중..." : "저장"}
-              </Button>
-            </div>
+      {/* 닉네임 인라인 편집 폼 */}
+      {isLoggedIn && editingNick && (
+        <div style={{ padding: "0 24px 12px" }}>
+          <TextField
+            variant="box"
+            label="새 닉네임"
+            value={nickInput}
+            onChange={(e) => { setNickInput(e.target.value); setNickError(null); }}
+            maxLength={12}
+          />
+          {nickError && (
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: colors.red500 }}>{nickError}</p>
+          )}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <Button size="medium" color="dark" variant="weak" onClick={() => { setEditingNick(false); setNickError(null); }}>
+              취소
+            </Button>
+            <Button size="medium" onClick={handleNickSave} disabled={nickInput.trim().length === 0 || nickChecking}>
+              {nickChecking ? "확인 중..." : "저장"}
+            </Button>
           </div>
-        ) : (
-          <div style={{ padding: "0 24px 10px" }}>
-            <button
-              onClick={() => { setNickInput(myNickname); setEditingNick(true); }}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                fontSize: 13,
-                color: colors.grey500,
-                textDecoration: "underline",
-                cursor: "pointer",
-              }}
-            >
-              ✏️ 닉네임 수정
-            </button>
-          </div>
-        )
+        </div>
       )}
 
       {/* 스코프 탭: 전체 랭킹 / 친구 */}
@@ -264,6 +267,38 @@ export function LeaderboardPage({ userKey, isLoggedIn, onLoginRequired }: Leader
           </Button>
         </div>
       )}
+
+      {/* 내 순위 카드 — 스크롤 없이 내 위치 + 다음 목표 표시 */}
+      {isLoggedIn && !showDummy && (() => {
+        const myIndex = displayList.findIndex((e) => e.id === userKey);
+        if (myIndex < 0) {
+          // 주간/월간에 내 기록이 아직 없는 경우
+          if (period !== "all" && displayList.length > 0) {
+            return (
+              <div style={{ margin: "0 24px 12px", padding: "12px 16px", background: colors.blue50, borderRadius: 12 }}>
+                <p style={{ margin: 0, fontSize: 13, color: colors.grey600 }}>
+                  {period === "week" ? "이번 주" : "이번 달"} 기록이 아직 없어요 — 운동하고 순위에 올라와요! 💪
+                </p>
+              </div>
+            );
+          }
+          return null;
+        }
+        const me = displayList[myIndex];
+        const above = myIndex > 0 ? displayList[myIndex - 1] : null;
+        return (
+          <div style={{ margin: "0 24px 12px", padding: "12px 16px", background: colors.blue50, borderRadius: 12 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: "bold", color: colors.blue600 }}>
+              내 순위 {myIndex + 1}위 · {me.points.toLocaleString()}P
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: colors.grey600 }}>
+              {above
+                ? `${myIndex}위 ${above.name}(${above.points.toLocaleString()}P)까지 ${(above.points - me.points + 1).toLocaleString()}P 남았어요`
+                : "현재 1위예요! 🏆"}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* 친구 탭인데 친구 없음 */}
       {isLoggedIn && scope === "friends" && !loading && entries.length <= 1 ? (
