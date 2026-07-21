@@ -7,7 +7,7 @@ const SUPABASE_URL = need("SUPABASE_URL");
 const SERVICE_KEY = need("SUPABASE_SERVICE_ROLE_KEY");
 const MTLS_CERT = need("TOSS_MTLS_CERT");
 const MTLS_KEY = need("TOSS_MTLS_KEY");
-const TEMPLATE_SET_CODE = process.env.TEMPLATE_SET_CODE ?? "short-workout-notice";
+const TEMPLATE_SET_CODE = process.env.TEMPLATE_SET_CODE ?? "short-workout-push";
 
 const TOSS_HOST = "apps-in-toss-api.toss.im";
 const BULK_PATH = "/api-partner/v1/apps-in-toss/messenger/send-bulk-message";

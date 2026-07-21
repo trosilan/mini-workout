@@ -152,7 +152,7 @@ export function OnboardingPage({ onComplete, onCancel, onLoginDone }: Onboarding
     setDoneLoading(true);
 
     // 알림 동의 요청 (콘솔 발송 코드와 동일)
-    const NOTIFICATION_TEMPLATE_CODE = "short-workout-notice";
+    const NOTIFICATION_TEMPLATE_CODE = "short-workout-push";
     let finished = false;
     const finishOnce = (agreed: boolean) => {
       if (finished) return;

@@ -16,7 +16,7 @@ import {
   type Settings,
 } from "../data";
 
-const NOTIFICATION_TEMPLATE_CODE = "short-workout-notice";
+const NOTIFICATION_TEMPLATE_CODE = "short-workout-push";
 
 interface SettingsPageProps {
   onBack: () => void;
