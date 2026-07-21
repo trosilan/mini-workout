@@ -1,5 +1,6 @@
 import { colors } from "@toss/tds-colors";
 import { Button, Top } from "@toss/tds-mobile";
+import { getTossShareLink, setClipboardText } from "@apps-in-toss/web-framework";
 import { useEffect, useState } from "react";
 import {
   EXERCISES,
@@ -9,7 +10,8 @@ import {
   loadSettings,
   totalSessionsInRoutine,
 } from "../data";
-import { fetchFriendsToday, sendPoke, type FriendToday } from "../supabase";
+import { inviteDeepLink } from "../referral";
+import { fetchFriendsToday, type FriendToday } from "../supabase";
 
 interface HomePageProps {
   onStartWorkout: () => void;
@@ -41,7 +43,7 @@ function friendRoutineHours(f: FriendToday): number[] {
 export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpenTimer, onOpenReward, userKey }: HomePageProps) {
   const [friendsToday, setFriendsToday] = useState<FriendToday[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<FriendToday | null>(null);
-  const [pokeBusy, setPokeBusy] = useState(false);
+  const [nudgeBusy, setNudgeBusy] = useState(false);
 
   useEffect(() => {
     if (userKey) {
@@ -49,21 +51,26 @@ export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpe
     }
   }, [userKey]);
 
-  const handlePoke = async () => {
-    if (!userKey || !selectedFriend) return;
-    setPokeBusy(true);
+  // 콕 찌르기 푸시(캠페인 승인 대기) 전까지는 링크 복사로 독려
+  const handleNudgeLink = async () => {
+    setNudgeBusy(true);
+    let link = "https://toss.im/short-workout";
     try {
-      const r = await sendPoke(userKey, selectedFriend.user_key);
-      if (r === "ok") {
-        alert(`${selectedFriend.nickname}님을 콕 찔렀어요! 곧 알림이 가요 👉`);
-      } else if (r === "already") {
-        alert("이번 시간에는 이미 찔렀어요. 다음 시간에 또 찔러보세요!");
-      } else {
-        alert("찌르기에 실패했어요. 잠시 후 다시 시도해주세요.");
-      }
-    } finally {
-      setPokeBusy(false);
+      link = await getTossShareLink(inviteDeepLink(userKey ?? ""));
+    } catch {
+      // 폴백 링크 사용
     }
+    try {
+      await setClipboardText(link);
+    } catch {
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch {
+        // ignore
+      }
+    }
+    setNudgeBusy(false);
+    alert("앱 링크가 복사됐어요! 친구에게 보내서 운동을 유도해보세요 💪");
   };
 
   const settings = loadSettings();
@@ -417,11 +424,11 @@ export function HomePage({ onStartWorkout, onEditSettings, onOpenSettings, onOpe
               </div>
             )}
 
-            <Button display="full" size="large" onClick={handlePoke} disabled={pokeBusy}>
-              {pokeBusy ? "찌르는 중..." : "👉 콕 찌르기"}
+            <Button display="full" size="large" onClick={handleNudgeLink} disabled={nudgeBusy}>
+              {nudgeBusy ? "복사 중..." : "🔗 링크 복사해서 독려하기"}
             </Button>
             <p style={{ margin: "8px 0 0", fontSize: 11, color: colors.grey400, textAlign: "center" }}>
-              찌르면 친구에게 운동 독려 알림이 가요 (시간당 1번)
+              복사한 링크를 친구에게 보내 운동을 유도해보세요
             </p>
           </div>
         </div>
