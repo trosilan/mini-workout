@@ -228,7 +228,17 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
             <select
               value={settings.notifyStart}
               onChange={(e) => {
-                if (e.target.value !== settings.notifyEnd) update({ notifyStart: e.target.value });
+                // 하루 안에서만: 시작 ≥ 종료가 되면 종료를 시작+1시간으로 자동 보정
+                const s = parseInt(e.target.value.split(":")[0]);
+                const eh = parseInt(settings.notifyEnd.split(":")[0]);
+                if (s >= eh) {
+                  update({
+                    notifyStart: e.target.value,
+                    notifyEnd: `${String(Math.min(s + 1, 23)).padStart(2, "0")}:00`,
+                  });
+                } else {
+                  update({ notifyStart: e.target.value });
+                }
               }}
               style={{
                 fontSize: "15px",
@@ -237,7 +247,7 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
                 border: `1px solid ${colors.grey200}`,
               }}
             >
-              {TIME_OPTIONS.map((opt) => (
+              {TIME_OPTIONS.slice(0, 23).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -261,7 +271,17 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
             <select
               value={settings.notifyEnd}
               onChange={(e) => {
-                if (e.target.value !== settings.notifyStart) update({ notifyEnd: e.target.value });
+                // 하루 안에서만: 종료 ≤ 시작이 되면 시작을 종료-1시간으로 자동 보정
+                const eh = parseInt(e.target.value.split(":")[0]);
+                const s = parseInt(settings.notifyStart.split(":")[0]);
+                if (eh <= s) {
+                  update({
+                    notifyEnd: e.target.value,
+                    notifyStart: `${String(Math.max(eh - 1, 0)).padStart(2, "0")}:00`,
+                  });
+                } else {
+                  update({ notifyEnd: e.target.value });
+                }
               }}
               style={{
                 fontSize: "15px",
@@ -270,7 +290,7 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
                 border: `1px solid ${colors.grey200}`,
               }}
             >
-              {TIME_OPTIONS.map((opt) => (
+              {TIME_OPTIONS.slice(1).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -278,6 +298,9 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
             </select>
           }
         />
+        <p style={{ margin: "4px 24px 8px", fontSize: 12, color: colors.grey400 }}>
+          루틴은 하루 안(시작 &lt; 종료)에서만 설정할 수 있어요
+        </p>
       </List>
 
       <List groupTitle="알림 요일">
