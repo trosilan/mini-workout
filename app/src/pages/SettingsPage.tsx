@@ -152,29 +152,63 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
     update({ enabledExerciseId: id });
   };
 
+  const [agreeBusy, setAgreeBusy] = useState(false);
+  const agreeCleanupRef = useRef<(() => void) | null>(null);
+
   const requestNotify = () => {
+    if (agreeBusy) return; // 연타 방지
+    setAgreeBusy(true);
+
+    let finished = false;
+    const finishOnce = (message?: string) => {
+      if (finished) return;
+      finished = true;
+      try {
+        agreeCleanupRef.current?.();
+      } catch { /* ignore */ }
+      agreeCleanupRef.current = null;
+      setAgreeBusy(false);
+      if (message) alert(message);
+    };
+
+    // SDK가 응답을 안 주는 경우 12초 후 안내 (조용한 실패 방지)
+    const timer = setTimeout(
+      () => finishOnce("응답이 없어요. 네트워크 확인 후 다시 시도하거나, 앱을 완전히 껐다 켜주세요."),
+      12000
+    );
+
     try {
-      const cleanup = requestNotificationAgreement({
+      // 이전 리스너 정리 (중복 등록 방지)
+      try {
+        agreeCleanupRef.current?.();
+      } catch { /* ignore */ }
+
+      agreeCleanupRef.current = requestNotificationAgreement({
         options: { templateCode: NOTIFICATION_TEMPLATE_CODE },
         onEvent: ({ type }) => {
-          cleanup();
+          clearTimeout(timer);
           if (type === "newAgreement" || type === "alreadyAgreed") {
             localStorage.setItem("jeongunwan.notifyAgreed", "1");
             setNotifyAgreed(true);
             onAgreed?.(); // DB에 동의 여부 즉시 반영
-            if (type === "alreadyAgreed") {
-              // 이미 동의된 계정은 토스가 동의창을 다시 보여주지 않음 — 명시적으로 안내
-              alert("이미 알림 수신에 동의되어 있어요. 설정한 시간에 알림을 보내드릴게요!");
-            }
+            finishOnce(
+              type === "alreadyAgreed"
+                ? "이미 알림 수신에 동의되어 있어요. 설정한 시간에 알림을 보내드릴게요!"
+                : "알림 동의 완료! 설정한 시간에 알림을 보내드릴게요 🎉"
+            );
+          } else {
+            // agreementRejected — 거절도 명시적으로 안내
+            finishOnce("동의를 거절하셨어요. 언제든 여기서 다시 동의할 수 있어요.");
           }
         },
         onError: (e) => {
-          cleanup();
-          alert("알림 동의 요청에 실패했어요: " + String(e));
+          clearTimeout(timer);
+          finishOnce("알림 동의 요청에 실패했어요: " + String(e));
         },
       });
     } catch (e) {
-      alert("이 환경에서는 알림 동의를 받을 수 없어요: " + String(e));
+      clearTimeout(timer);
+      finishOnce("이 환경에서는 알림 동의를 받을 수 없어요: " + String(e));
     }
   };
 
@@ -204,8 +238,8 @@ export function SettingsPage({ onBack, onAgreed }: SettingsPageProps) {
               />
             }
             right={
-              <Button size="small" variant="weak" onClick={requestNotify}>
-                동의하기
+              <Button size="small" variant="weak" onClick={requestNotify} disabled={agreeBusy}>
+                {agreeBusy ? "요청 중..." : "동의하기"}
               </Button>
             }
           />
